@@ -13,8 +13,12 @@ func ContextWithFields(parent context.Context, fields Fields) context.Context {
 	if val == nil {
 		newFields = fields
 	} else {
-		newFields = make(Fields)
-		oldFields, _ := val.(Fields)
+		oldFields, ok := val.(Fields)
+		if !ok {
+			panic("fields expected to be type of 'Fields'")
+		}
+
+		newFields = make(Fields, len(oldFields)+len(fields))
 		for k, v := range oldFields {
 			newFields[k] = v
 		}

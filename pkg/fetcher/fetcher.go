@@ -8,6 +8,8 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/JokeTrue/image-previewer/pkg/utils"
+
 	"github.com/JokeTrue/image-previewer/pkg/logging"
 	"github.com/pkg/errors"
 )
@@ -15,6 +17,7 @@ import (
 var (
 	ErrNotSupportedContentType = errors.New("got not supported content type")
 	ErrNotSupportedScheme      = errors.New("got not supported scheme")
+	SupportedContentTypes      = []string{"image/jpeg"}
 )
 
 type Fetcher interface {
@@ -84,7 +87,7 @@ func (f *HTTPFetcher) doRequest(request *http.Request) ([]byte, error) {
 		}
 	}()
 
-	if resp.Header.Get("Content-type") != "image/jpeg" {
+	if !utils.Contains(SupportedContentTypes, resp.Header.Get("Content-type")) {
 		return nil, ErrNotSupportedContentType
 	}
 

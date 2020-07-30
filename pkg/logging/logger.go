@@ -20,7 +20,7 @@ const (
 
 type Fields map[string]interface{}
 
-type Level uint32
+type Level int
 
 func (l Level) String() string {
 	return logrus.Level(l).String()

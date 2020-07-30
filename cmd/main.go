@@ -6,7 +6,6 @@ import (
 	"os"
 	"time"
 
-	cachePkg "github.com/JokeTrue/image-previewer/pkg/cache"
 	fetcherPkg "github.com/JokeTrue/image-previewer/pkg/fetcher"
 	transformerPkg "github.com/JokeTrue/image-previewer/pkg/transformer"
 
@@ -19,49 +18,66 @@ import (
 	"github.com/justinas/alice"
 
 	"github.com/JokeTrue/image-previewer/pkg/logging"
+	lru "github.com/hashicorp/golang-lru"
 )
 
 var (
 	appName         = "image-previewer"
-	addr            = flag.String("addr", ":8080", "App addr")
-	connectTimeout  = flag.Duration("connect-timeout", 25*time.Second, "Сonnection timeout")
-	requestTimeout  = flag.Duration("request-timeout", 25*time.Second, "Request timeout")
-	shutdownTimeout = flag.Duration("shutdown-timeout", 30*time.Second, "Graceful shutdown timeout")
-	cacheDir        = flag.String("cache-dir", "", "Path to Cache dir")
-	cacheSize       = flag.Int("cache-size", 5, "Size of cache")
+	addr            string
+	connectTimeout  time.Duration
+	requestTimeout  time.Duration
+	shutdownTimeout time.Duration
+	cacheDir        string
+	cacheSize       int
 )
+
+func init() {
+	flag.StringVar(&addr, "addr", ":8080", "App addr")
+	flag.DurationVar(&connectTimeout, "connect-timeout", 25*time.Second, "Сonnection timeout")
+	flag.DurationVar(&requestTimeout, "request-timeout", 25*time.Second, "Request timeout")
+	flag.DurationVar(&shutdownTimeout, "shutdown-timeout", 30*time.Second, "Graceful shutdown timeout")
+	flag.StringVar(&cacheDir, "cache-dir", "", "Path to Cache dir")
+	flag.IntVar(&cacheSize, "cache-size", 5, "Size of cache")
+}
 
 func main() {
 	flag.Parse()
 
 	// 1. Setup required Units
 	logger := logging.DefaultLogger
-	fetcher := fetcherPkg.NewFetcher(logger, *connectTimeout, *requestTimeout)
-	transformer := transformerPkg.NewTransformer()
+	fetcher := fetcherPkg.NewFetcher(logger, connectTimeout, requestTimeout)
+	cropper := transformerPkg.NewCropper()
 
 	// 2. If cacheDir isn't provided, then use Temporary Dir
-	if *cacheDir == "" {
+	if cacheDir == "" {
 		var err error
-		*cacheDir, err = ioutil.TempDir("", "")
+		cacheDir, err = ioutil.TempDir("", "")
 		if err != nil {
-			logger.Fatal(err)
+			logger.WithError(err).Fatal(err)
 		}
-		defer os.RemoveAll(*cacheDir)
+		defer func() {
+			if err := os.RemoveAll(cacheDir); err != nil {
+				logger.WithError(err).Error("failed to remove cache dir")
+			}
+		}()
 	}
 
 	// 3. Setup Cache
-	cache, err := cachePkg.NewCacheWithEvict(*cacheSize, func(key interface{}, value interface{}) {
+	cache, err := lru.NewWithEvict(cacheSize, func(key interface{}, value interface{}) {
 		if path, ok := value.(string); ok {
-			os.Remove(path)
+			defer func() {
+				err := os.Remove(path)
+				logger.WithError(err).Fatal("failed to remove item from cache")
+			}()
 		}
 	})
 	if err != nil {
-		logger.Fatal(err)
+		logger.WithError(err).Fatal("failed to setup cache")
 	}
 
 	// 4. Setup Application
-	application := app.NewApplication(*cacheDir, logger, fetcher, transformer, cache)
-	srv := service.NewHTTPServer(*addr, *shutdownTimeout, alice.New(
+	application := app.NewApplication(cacheDir, logger, fetcher, cropper, cache)
+	srv := service.NewHTTPServer(addr, shutdownTimeout, alice.New(
 		gziphandler.GzipHandler,
 		middleware.Logger(logger),
 	).Then(application.Run()))

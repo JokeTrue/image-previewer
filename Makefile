@@ -8,12 +8,12 @@ build:
 test:
 	go test -race -count 100 ./pkg/...
 
-bdd:
+integration-tests:
 	docker-compose -f ./docker-compose-tests.yaml up --abort-on-container-exit --exit-code-from integration-tests && \
 	docker-compose -f ./docker-compose-tests.yaml down
 
 run:
-	docker-compose -f ./docker-compose.yaml up --build
+	docker-compose -f ./docker-compose.yaml up -d
 
 down:
 	docker-compose -f ./docker-compose.yaml down

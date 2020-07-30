@@ -8,25 +8,27 @@ import (
 	"path"
 	"strconv"
 
+	cropper "github.com/JokeTrue/image-previewer/pkg/transformer"
+
+	"github.com/hashicorp/golang-lru/simplelru"
+
 	"github.com/pkg/errors"
 
 	"github.com/JokeTrue/image-previewer/pkg/fetcher"
 	"github.com/JokeTrue/image-previewer/pkg/logging"
-	"github.com/JokeTrue/image-previewer/pkg/lru"
-	"github.com/JokeTrue/image-previewer/pkg/transformer"
 	"github.com/JokeTrue/image-previewer/pkg/utils"
 )
 
 type Application struct {
-	cacheDir    string
-	logger      logging.Logger
-	fetcher     fetcher.Fetcher
-	transformer transformer.Transformer
-	cache       lru.Cache
+	cacheDir string
+	logger   logging.Logger
+	fetcher  fetcher.Fetcher
+	cropper  cropper.Transformer
+	cache    simplelru.LRUCache
 }
 
-func NewApplication(cacheDir string, l logging.Logger, f fetcher.Fetcher, t transformer.Transformer, c lru.Cache) *Application {
-	return &Application{cacheDir: cacheDir, logger: l, fetcher: f, transformer: t, cache: c}
+func NewApplication(cacheDir string, l logging.Logger, f fetcher.Fetcher, t cropper.Transformer, c simplelru.LRUCache) *Application {
+	return &Application{cacheDir: cacheDir, logger: l, fetcher: f, cropper: t, cache: c}
 }
 
 func (a *Application) Run() http.Handler {
@@ -63,6 +65,8 @@ func (a *Application) Run() http.Handler {
 		}
 
 		w.Header().Add("Content-Type", "image/jpeg")
+		w.Header().Set("Content-Length", strconv.Itoa(len(img)))
+
 		if _, err := w.Write(img); err != nil {
 			ctxLogger.WithError(err).Error("failed to write response")
 		}
@@ -72,7 +76,10 @@ func (a *Application) Run() http.Handler {
 
 func (a *Application) handle(ctx context.Context, url string, header http.Header, width, height int) ([]byte, error) {
 	// 1. Try to find image in Cache
-	cacheKey := utils.GetMD5Hash(fmt.Sprintf("%s|%d|%d", url, width, height))
+	cacheKey, err := utils.GetHash(fmt.Sprintf("%s|%d|%d", url, width, height))
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get cacheKey hash")
+	}
 	if imgPath, found := a.cache.Get(cacheKey); found {
 		img, err := ioutil.ReadFile(imgPath.(string))
 		return img, err
@@ -85,7 +92,7 @@ func (a *Application) handle(ctx context.Context, url string, header http.Header
 	}
 
 	// 2. Transform Image
-	img, err = a.transformer.Crop(img, width, height)
+	img, err = a.cropper.Crop(img, width, height)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to crop image")
 	}

@@ -1,7 +1,8 @@
-package transformer
+package cropper
 
 import (
 	"bytes"
+	"image/jpeg"
 
 	"github.com/disintegration/imaging"
 )
@@ -10,14 +11,13 @@ type Transformer interface {
 	Crop(img []byte, width, height int) ([]byte, error)
 }
 
-type transformer struct{}
+type Cropper struct{}
 
-// nolint
-func NewTransformer() *transformer {
-	return &transformer{}
+func NewCropper() *Cropper {
+	return &Cropper{}
 }
 
-func (t *transformer) Crop(img []byte, width, height int) ([]byte, error) {
+func (t *Cropper) Crop(img []byte, width, height int) ([]byte, error) {
 	src, err := imaging.Decode(bytes.NewReader(img))
 	if err != nil {
 		return nil, err
@@ -25,6 +25,6 @@ func (t *transformer) Crop(img []byte, width, height int) ([]byte, error) {
 	src = imaging.Fill(src, width, height, imaging.Center, imaging.Lanczos)
 
 	var buff bytes.Buffer
-	err = imaging.Encode(&buff, src, imaging.JPEG)
+	err = jpeg.Encode(&buff, src, nil)
 	return buff.Bytes(), err
 }
