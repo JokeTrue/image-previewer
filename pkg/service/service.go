@@ -29,5 +29,7 @@ func Run(service StartStopper, appName string) {
 func Wait(signals []os.Signal) os.Signal {
 	sig := make(chan os.Signal, len(signals))
 	signal.Notify(sig, signals...)
-	return <-sig
+	s := <-sig
+	signal.Stop(sig)
+	return s
 }

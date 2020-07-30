@@ -66,8 +66,9 @@ func main() {
 	cache, err := lru.NewWithEvict(cacheSize, func(key interface{}, value interface{}) {
 		if path, ok := value.(string); ok {
 			defer func() {
-				err := os.Remove(path)
-				logger.WithError(err).Fatal("failed to remove item from cache")
+				if err := os.Remove(path); err != nil {
+					logger.WithError(err).Fatal("failed to remove item from cache")
+				}
 			}()
 		}
 	})

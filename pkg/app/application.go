@@ -60,7 +60,7 @@ func (a *Application) Run() http.Handler {
 		img, err := a.handle(ctx, url, r.Header, width, height)
 		if err != nil {
 			ctxLogger.WithError(err).Error("failed to handle request")
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			http.Error(w, err.Error(), http.StatusBadGateway)
 			return
 		}
 

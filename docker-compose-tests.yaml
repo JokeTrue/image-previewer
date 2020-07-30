@@ -6,11 +6,10 @@ services:
     build:
       context: .
       dockerfile: ./docker/Dockerfile
-    restart: unless-stopped
-    ports:
-      - "8080:8080"
     logging:
       driver: none
+    ports:
+      - "8080:8080"
     environment:
       LOG_LEVEL: "info"
 
@@ -18,7 +17,7 @@ services:
     image: nginx:alpine
     restart: always
     ports:
-      - 80:80
+      - "80:80"
     logging:
       driver: none
     volumes:

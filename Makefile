@@ -9,7 +9,7 @@ test:
 	go test -race -count 100 ./pkg/...
 
 integration-tests:
-	docker-compose -f ./docker-compose-tests.yaml up --abort-on-container-exit --exit-code-from integration-tests && \
+	docker-compose -f ./docker-compose-tests.yaml up --build --abort-on-container-exit --exit-code-from integration-tests && \
 	docker-compose -f ./docker-compose-tests.yaml down
 
 run:

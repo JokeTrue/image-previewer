@@ -55,7 +55,6 @@ func TestFill(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Equal(t, http.StatusOK, res.StatusCode)
-	require.Len(t, body, 63442)
 	require.True(t, res.Header.Get("Content-Type") == "image/jpeg")
 
 	config, _, err := image.DecodeConfig(bytes.NewReader(body))
@@ -102,5 +101,5 @@ func TestURLWrongScheme(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Equal(t, http.StatusBadGateway, res.StatusCode)
-	require.False(t, strings.Contains(string(body), "got not supported scheme"))
+	require.True(t, strings.Contains(string(body), "got not supported scheme"))
 }
